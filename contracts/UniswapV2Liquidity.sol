@@ -21,6 +21,47 @@ contract UniswapV2Liquidity is ERC20 {
         token1 = IERC20(_token1);
     }
 
-    
+    function _sqrt(uint256 y) internal pure returns (uint256 z) {
+        if (y > 3) {
+            z = y;
+            uint256 x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+
+    function _min(uint x, uint y) private pure returns (uint) {
+        return x < y ? x : y;
+    }
+
+    function _updateReserves() private {
+        reserve0 = token0.balanceOf(address(this));
+        reserve1 = token1.balanceOf(address(this));
+    }
+
+    function addLiquidity(uint256 amount0, uint256 amount1) external returns (uint256 shares){
+        require(amount0 > 0 && amount1 > 0, "ZERO_AMOUNT");
+
+        token0.transferFrom(msg.sender, address(this), amount0);
+        token1.transferFrom(msg.sender, address(this), amount1);
+
+        if (totalSupply() == 0) {
+            shares = _sqrt(amount0 * amount1);
+        } else {
+            shares = _min(
+                (amount0 * totalSupply()) / reserve0,
+                (amount1 * totalSupply()) / reserve1
+            );
+        }
+
+        require(shares > 0, "ZERO_SHARES");
+        _mint(msg.sender, shares);
+        _updateReserves();
+    }
+
 
 }
