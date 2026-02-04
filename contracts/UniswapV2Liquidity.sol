@@ -63,5 +63,19 @@ contract UniswapV2Liquidity is ERC20 {
         _updateReserves();
     }
 
+    function removeLiquidity(uint256 shares) external returns(uint256 amount0, uint256 amount1){
+        require(shares > 0, "ZERO SHARES");
+
+        amount0 = (shares * reserve0)/totalSupply();
+        amount1 = (shares * reserve1) / totalSupply();
+
+        _burn(msg.sender, shares);
+
+        token0.transfer(msg.sender, amount0);
+        token1.transfer(msg.sender, amount1);
+
+        _updateReserves();
+    }
+
 
 }
