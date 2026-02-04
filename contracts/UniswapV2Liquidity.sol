@@ -77,5 +77,35 @@ contract UniswapV2Liquidity is ERC20 {
         _updateReserves();
     }
 
+    function getAmountOut( uint256 amountIn, uint256 reserveIn, uint256 reserveOut) public pure returns(uint256){
+        uint256 amountInWithFee = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR);
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = (reserveIn * (FEE_DENOMINATOR)) + amountInWithFee;
+        return numerator/denominator;
+    }
 
+    /// @dev a simple single hop swap that takes exact input tokens for output tokens 
+    /// @dev mimimcs `swapExactTokenForTokens` in uniswap v2 Router02 contract
+    function simpleSwap(address tokenIn, uint256 amountIn) external 
+    returns
+    (
+        uint256 amountOut
+    )
+    {
+        require(amountIn > 0, "ZERO_INPUT");
+
+        bool isToken0 = tokenIn == address(token0);
+        require(isToken0 || tokenIn == address(token1), "INVALID_TOKEN");
+
+        (IERC20 inToken, IERC20 outToken, uint256 reserveIn, uint256 reserveOut) = isToken0
+                ? (token0, token1, reserve0, reserve1)
+                : (token1, token0, reserve1, reserve0);
+
+        inToken.transferFrom(msg.sender,address(this),amountIn);
+        amountOut = getAmountOut(amountIn, reserveIn, reserveOut);
+
+        outToken.transfer(msg.sender, amountOut);
+
+        _updateReserves();
+    }
 }
