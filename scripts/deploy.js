@@ -17,10 +17,17 @@ async function main(){
 
   await Pool.waitForDeployment();
 
+  const addresses = {
+    token0: await token0.getAddress(),
+    token1: await token1.getAddress(),
+    pool: await Pool.getAddress()
+  }
+
+  logger.logToFile('addresses.json', JSON.stringify(addresses,null,2));
+
   logger.info('Pool address: ', await Pool.getAddress());
   logger.info('Token-0 address: ',await token0.getAddress());
   logger.info('Token-1 address: ',await token1.getAddress());
-
 }
 
 main().catch((error) => {
