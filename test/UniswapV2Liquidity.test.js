@@ -47,7 +47,7 @@ describe("Uniswap V2 Liquidity Testing", () => {
             .mint(user.address, ethers.parseEther('100'));
     })
 
-    it("adding liquidity first time", async () => {
+    beforeEach("adding liquidity first time", async () => {
         const amount0 = ethers.parseEther('100');
         const amount1 = ethers.parseEther('100');
 
@@ -62,23 +62,17 @@ describe("Uniswap V2 Liquidity Testing", () => {
         await pool
             .connect(liquidityProvider1)
             .addLiquidity(amount0, amount1);
-        
+    })
+
+    it("adding liquidity first time test", async () => {
+        const amount = ethers.parseEther('100');
         const shares = await pool.balanceOf(liquidityProvider1.address);
-        expect(shares).to.equal(amount0);
+        expect(shares).to.equal(amount);
     })
 
     it("adding liquidity second time", async () => {
         const amount0 = ethers.parseEther('100');
         const amount1 = ethers.parseEther('100');
-
-        await token0
-            .connect(liquidityProvider1)
-            .approve(await pool.getAddress(), amount0);
-        
-        await token1
-            .connect(liquidityProvider1)
-            .approve(await pool.getAddress(), amount1);
-
         await token0
             .connect(liquidityProvider2)
             .approve(await pool.getAddress(), amount0);
@@ -103,25 +97,11 @@ describe("Uniswap V2 Liquidity Testing", () => {
     })
 
     it("simple swap", async () => {
-        const amount0 = ethers.parseEther('100');
-        const amount1 = ethers.parseEther('100');
         const amountIn = ethers.parseEther('10');
-
-        await token0
-            .connect(liquidityProvider1)
-            .approve(await pool.getAddress(), amount0);
-        
-        await token1
-            .connect(liquidityProvider1)
-            .approve(await pool.getAddress(), amount1);
 
         await token1
             .connect(user)
             .approve(await pool.getAddress(), amountIn);
-
-        await pool
-            .connect(liquidityProvider1)
-            .addLiquidity(amount0, amount1);
 
         const reserveIn = await pool
             .reserve1();
