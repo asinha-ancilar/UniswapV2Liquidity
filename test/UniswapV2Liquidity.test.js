@@ -101,4 +101,44 @@ describe("Uniswap V2 Liquidity Testing", () => {
         
         expect(shares).to.equal(shareProvided); 
     })
+
+    it("simple swap", async () => {
+        const amount0 = ethers.parseEther('100');
+        const amount1 = ethers.parseEther('100');
+        const amountIn = ethers.parseEther('10');
+
+        await token0
+            .connect(liquidityProvider1)
+            .approve(await pool.getAddress(), amount0);
+        
+        await token1
+            .connect(liquidityProvider1)
+            .approve(await pool.getAddress(), amount1);
+
+        await token1
+            .connect(user)
+            .approve(await pool.getAddress(), amountIn);
+
+        await pool
+            .connect(liquidityProvider1)
+            .addLiquidity(amount0, amount1);
+
+        const reserveIn = await pool
+            .reserve1();
+        
+        const reserveOut = await pool
+            .reserve0();
+        
+        const amountOut = await pool
+            .getAmountOut(amountIn,reserveIn, reserveOut)
+        
+        await pool
+            .connect(user)
+            .simpleSwap(await token1.getAddress(), amountIn)
+        
+        const userBalanceOfToken0 = await token0
+            .balanceOf(user)
+        
+        expect(userBalanceOfToken0).to.equal(amountOut)
+    })
 })
