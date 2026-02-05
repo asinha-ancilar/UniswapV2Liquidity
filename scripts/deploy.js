@@ -23,7 +23,7 @@ async function main(){
     pool: await Pool.getAddress()
   }
 
-  logger.logToFile('addresses.json', JSON.stringify(addresses,null,2));
+  logger.logToFile('addresses-local.json', JSON.stringify(addresses,null,2));
 
   logger.info('Pool address: ', await Pool.getAddress());
   logger.info('Token-0 address: ',await token0.getAddress());
