@@ -66,4 +66,39 @@ describe("Uniswap V2 Liquidity Testing", () => {
         const shares = await pool.balanceOf(liquidityProvider1.address);
         expect(shares).to.equal(amount0);
     })
+
+    it("adding liquidity second time", async () => {
+        const amount0 = ethers.parseEther('100');
+        const amount1 = ethers.parseEther('100');
+
+        await token0
+            .connect(liquidityProvider1)
+            .approve(await pool.getAddress(), amount0);
+        
+        await token1
+            .connect(liquidityProvider1)
+            .approve(await pool.getAddress(), amount1);
+
+        await token0
+            .connect(liquidityProvider2)
+            .approve(await pool.getAddress(), amount0);
+        
+        await token1
+            .connect(liquidityProvider2)
+            .approve(await pool.getAddress(), amount1);
+
+        await pool
+            .connect(liquidityProvider2)
+            .addLiquidity(amount0, amount1);
+        
+
+        const shares = await pool.balanceOf(liquidityProvider2.address);
+
+        const totalSupply = await pool.totalSupply();
+        const reserve0 = await pool.reserve0();
+
+        const shareProvided = (amount0 * totalSupply) / reserve0
+        
+        expect(shares).to.equal(shareProvided); 
+    })
 })
