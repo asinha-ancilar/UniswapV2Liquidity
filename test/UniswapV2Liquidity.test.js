@@ -176,4 +176,14 @@ describe("Uniswap V2 Liquidity Testing", () => {
             .balanceOf(user.address)
         await expect(pool.connect(user).removeLiquidity(shares)).to.be.revertedWith("ZERO SHARES");
     })
+
+    it("swapping with zero input amount", async () => {
+        const amountIn = ethers.parseEther('0');
+
+        await token1
+            .connect(user)
+            .approve(await pool.getAddress(), amountIn);
+        
+        await expect(pool.connect(user).simpleSwap(await token1.getAddress(), amountIn)).to.be.revertedWith("ZERO_INPUT")
+    })
 })
