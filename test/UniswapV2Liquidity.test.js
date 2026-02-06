@@ -1,6 +1,16 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
+/**
+ *  UniswapV2Liquidity Unit Tests
+ * Covers:
+ *  - Initial liquidity minting
+ *  - Proportional LP share minting
+ *  - Swaps with 0.3% fee
+ *  - Liquidity removal
+ *  - Edge cases (zero amounts, invalid token)
+ */
+
 describe("Uniswap V2 Liquidity Testing", () => {
     let pool;
     let token0;
@@ -12,6 +22,9 @@ describe("Uniswap V2 Liquidity Testing", () => {
     let user;
     let user2;
 
+    /**
+     * Deploy fresh tokens + pool before each test
+     */
     beforeEach("contract deployment", async () => {
 
         const Token = await ethers.getContractFactory('Token');
@@ -29,6 +42,11 @@ describe("Uniswap V2 Liquidity Testing", () => {
         await pool.waitForDeployment();
     })
 
+    /**
+     * Distribute tokens to actors:
+     *  -LPs provide liquidity
+     *  - user performs swaps
+     */
     beforeEach('Minting tokens to signers', async () => {
         [owner, liquidityProvider1, liquidityProvider2, user, user2] = await ethers.getSigners();
 
@@ -51,6 +69,9 @@ describe("Uniswap V2 Liquidity Testing", () => {
             .mint(user2.address, ethers.parseEther('100'));
     })
 
+    /**
+     * Sends pool with initial liquidity before each test
+     */
     beforeEach("adding liquidity first time", async () => {
         const amount0 = ethers.parseEther('100');
         const amount1 = ethers.parseEther('100');
@@ -68,12 +89,20 @@ describe("Uniswap V2 Liquidity Testing", () => {
             .addLiquidity(amount0, amount1);
     })
 
+    /**
+     * First Liquidity provider receives sqrt(amount0 * amount1) shares
+     * For equal amount of both tokens, shares = amount of one token
+     */
     it("adding liquidity first time test", async () => {
         const amount = ethers.parseEther('100');
         const shares = await pool.balanceOf(liquidityProvider1.address);
         expect(shares).to.equal(amount);
     })
 
+    /**
+     * Second LP should receive proportional shares.
+     * share = amount * totalSupply/reserve
+     */
     it("adding liquidity second time", async () => {
         const amount0 = ethers.parseEther('100');
         const amount1 = ethers.parseEther('100');
@@ -100,6 +129,10 @@ describe("Uniswap V2 Liquidity Testing", () => {
         expect(shares).to.equal(shareProvided); 
     })
 
+    /**
+     * swap token1 -> token0
+     * Verify output matches getAmountOut formula.
+     */
     it("simple swap of token1 in exchange of token0", async () => {
         const amountIn = ethers.parseEther('10');
 
@@ -126,7 +159,10 @@ describe("Uniswap V2 Liquidity Testing", () => {
         
         expect(balanceAfter - balanceBefore).to.equal(amountOut)
     })
-
+    /**
+     * swap token0 -> token1
+     * Verify output matches getAmountOut formula.
+     */
     it("simple swap for token0 in exchange of token1", async () => {
         const amountIn = ethers.parseEther('10');
 
@@ -153,7 +189,18 @@ describe("Uniswap V2 Liquidity Testing", () => {
         expect(balanceAfter - balanceBefore).to.equal(amountOut)
     })
 
+    /**
+     * removes liquidity to burn lp tokens
+     * after swap LP should gain more tokens than before 
+     */
     it("removing liquidity", async () => {
+
+        const balance0before = await token0
+            .balanceOf(liquidityProvider1.address);
+        
+        const balance1before = await token1
+            .balanceOf(liquidityProvider1.address)
+
         const amountIn = ethers.parseEther('10');
 
         await token1
@@ -164,12 +211,7 @@ describe("Uniswap V2 Liquidity Testing", () => {
             .connect(user)
             .simpleSwap(await token1.getAddress(), amountIn);
 
-        const balance0before = await token0
-            .balanceOf(liquidityProvider1.address);
-        
-        const balance1before = await token1
-            .balanceOf(liquidityProvider1.address)
-        
+
         const shares = await pool
             .balanceOf(liquidityProvider1.address);
         
@@ -187,6 +229,10 @@ describe("Uniswap V2 Liquidity Testing", () => {
         expect(balance1after).to.be.greaterThan(balance1before);
     })
 
+    /**
+     * edge case adding zero liquidity amount
+     * will revert with ZERO_AMOUNT
+     */
     it("zero amount adding liquidity test", async () => {
         const amount0 = ethers.parseEther('0');
         const amount1 = ethers.parseEther('0');
@@ -202,12 +248,20 @@ describe("Uniswap V2 Liquidity Testing", () => {
         await expect(pool.connect(liquidityProvider2).addLiquidity(amount0,amount1)).to.be.revertedWith("ZERO_AMOUNT");
     })
 
+    /**
+     * removing liquidity of user who hasn't provided any liquidity
+     * will revert with ZERO SHARES
+     */
     it("removing liquidity with zero shares", async () => {
         const shares = await pool
             .balanceOf(user.address)
         await expect(pool.connect(user).removeLiquidity(shares)).to.be.revertedWith("ZERO SHARES");
     })
 
+    /**
+     * trying to swap with zero input tokens
+     * should revert with ZERO INPUT
+     */
     it("swapping with zero input amount", async () => {
         const amountIn = ethers.parseEther('0');
 
@@ -218,6 +272,10 @@ describe("Uniswap V2 Liquidity Testing", () => {
         await expect(pool.connect(user).simpleSwap(await token1.getAddress(), amountIn)).to.be.revertedWith("ZERO_INPUT")
     })
 
+    /**
+     * Trying to swap an invalid token i.e, a token that is not part of pool
+     * should revert with message INVALID TOKEN
+     */
     it("test for invalid token", async () => {
         const invalidToken = await ethers.deployContract('Token', ['InvalidToken','IVT']);
         await invalidToken.waitForDeployment();
@@ -235,6 +293,9 @@ describe("Uniswap V2 Liquidity Testing", () => {
     })
 })
 
+/**
+ * Testing edge cases with extremely small liquidity
+ */
 describe("Uniwap v2 testing with small liquidity", () => {
 
     let pool;
@@ -243,9 +304,11 @@ describe("Uniwap v2 testing with small liquidity", () => {
 
     let owner;
     let liquidityProvider;
-    let liquidityProvider2;
 
     
+    /**
+     * Deploy fresh tokens + pool before each test
+     */
     beforeEach("contract deployment", async () => {
 
         const Token = await ethers.getContractFactory('Token');
@@ -262,23 +325,24 @@ describe("Uniwap v2 testing with small liquidity", () => {
         ]);
         await pool.waitForDeployment();
     })
-
+    /**
+     * Minting small amount of token to liquidity provider
+     */
     beforeEach('Minting tokens to signers', async () => {
-        [owner, liquidityProvider, liquidityProvider2] = await ethers.getSigners();
+        [owner, liquidityProvider] = await ethers.getSigners();
 
         await token0
             .mint(liquidityProvider.address, 1n);
         
         await token1
             .mint(liquidityProvider.address, 1n);
-        
-        await token0
-            .mint(liquidityProvider2.address, ethers.parseEther('1000'));
-        
-        await token1
-            .mint(liquidityProvider2.address, ethers.parseEther('1000'));
+    
     })
 
+    /**
+     * Test for small liquidity
+     * Adding initial liquidity of 1 wei 
+     */
     it("adding small liquidity for first time", async () => {
 
         const amount0 = 1n;
