@@ -155,4 +155,20 @@ describe("Uniswap V2 Liquidity Testing", () => {
         expect(balance0after).to.be.greaterThan(balance0before);
         expect(balance1after).to.be.greaterThan(balance1before);
     })
+
+    it("zero amount adding liquidity test", async () => {
+        const amount0 = ethers.parseEther('0');
+        const amount1 = ethers.parseEther('0');
+
+        await token0
+            .connect(liquidityProvider2)
+            .approve(await pool.getAddress(), amount0);
+        
+        await token1
+            .connect(liquidityProvider2)
+            .approve(await pool.getAddress(), amount1);
+
+        await expect(pool.addLiquidity(amount0,amount1)).to.be.revertedWith("ZERO_AMOUNT");
+        
+    })
 })
