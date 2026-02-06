@@ -201,7 +201,6 @@ describe("Uniswap V2 Liquidity Testing", () => {
             .approve(await pool.getAddress(),amountIn);
         
         await expect(pool.connect(user).simpleSwap(await invalidToken.getAddress(), amountIn)).to.be.revertedWith('INVALID_TOKEN');
-
     })
 })
 
@@ -212,7 +211,8 @@ describe("Uniwap v2 testing with small liquidity", () => {
     let token1;
 
     let owner;
-    let liquidityProvider
+    let liquidityProvider;
+    let liquidityProvider2;
 
     
     beforeEach("contract deployment", async () => {
@@ -233,13 +233,19 @@ describe("Uniwap v2 testing with small liquidity", () => {
     })
 
     beforeEach('Minting tokens to signers', async () => {
-        [owner, liquidityProvider] = await ethers.getSigners();
+        [owner, liquidityProvider, liquidityProvider2] = await ethers.getSigners();
 
         await token0
-            .mint(liquidityProvider.address, ethers.parseEther('1'));
+            .mint(liquidityProvider.address, 1n);
         
         await token1
-            .mint(liquidityProvider.address, ethers.parseEther('1000'));
+            .mint(liquidityProvider.address, 1n);
+        
+        await token0
+            .mint(liquidityProvider2.address, ethers.parseEther('1000'));
+        
+        await token1
+            .mint(liquidityProvider2.address, ethers.parseEther('1000'));
     })
 
     it("adding small liquidity for first time", async () => {
@@ -265,5 +271,4 @@ describe("Uniwap v2 testing with small liquidity", () => {
         
         expect(share).to.be.equal(shareAmount);
     })
-
 })
