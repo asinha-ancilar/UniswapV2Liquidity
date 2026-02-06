@@ -10,6 +10,7 @@ describe("Uniswap V2 Liquidity Testing", () => {
     let liquidityProvider1;
     let liquidityProvider2;
     let user;
+    let user2;
 
     beforeEach("contract deployment", async () => {
 
@@ -29,7 +30,7 @@ describe("Uniswap V2 Liquidity Testing", () => {
     })
 
     beforeEach('Minting tokens to signers', async () => {
-        [owner, liquidityProvider1, liquidityProvider2, user] = await ethers.getSigners();
+        [owner, liquidityProvider1, liquidityProvider2, user, user2] = await ethers.getSigners();
 
         await token0
             .mint(liquidityProvider1.address, ethers.parseEther('1000'));
@@ -45,6 +46,9 @@ describe("Uniswap V2 Liquidity Testing", () => {
         
         await token1
             .mint(user.address, ethers.parseEther('100'));
+        
+        await token0
+            .mint(user2.address, ethers.parseEther('100'));
     })
 
     beforeEach("adding liquidity first time", async () => {
@@ -96,7 +100,7 @@ describe("Uniswap V2 Liquidity Testing", () => {
         expect(shares).to.equal(shareProvided); 
     })
 
-    it("simple swap", async () => {
+    it("simple swap of token1 in exchange of token0", async () => {
         const amountIn = ethers.parseEther('10');
 
         await token1
@@ -111,15 +115,42 @@ describe("Uniswap V2 Liquidity Testing", () => {
         
         const amountOut = await pool
             .getAmountOut(amountIn,reserveIn, reserveOut)
+
+        const balanceBefore = await token0.balanceOf(user);
         
         await pool
             .connect(user)
             .simpleSwap(await token1.getAddress(), amountIn)
         
-        const userBalanceOfToken0 = await token0
-            .balanceOf(user)
+        const balanceAfter = await token0.balanceOf(user);
         
-        expect(userBalanceOfToken0).to.equal(amountOut)
+        expect(balanceAfter - balanceBefore).to.equal(amountOut)
+    })
+
+    it("simple swap for token0 in exchange of token1", async () => {
+        const amountIn = ethers.parseEther('10');
+
+        await token0
+            .connect(user2)
+            .approve(await pool.getAddress(), amountIn);
+
+        const reserveIn = await pool
+            .reserve0();
+        
+        const reserveOut = await pool
+            .reserve1();
+        
+        const amountOut = await pool
+            .getAmountOut(amountIn,reserveIn, reserveOut)
+        
+        const balanceBefore = await token1.balanceOf(user2.address);
+        
+        await pool
+            .connect(user2)
+            .simpleSwap(await token0.getAddress(), amountIn)
+        
+        const balanceAfter = await token1.balanceOf(user2.address);
+        expect(balanceAfter - balanceBefore).to.equal(amountOut)
     })
 
     it("removing liquidity", async () => {
