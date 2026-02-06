@@ -186,4 +186,84 @@ describe("Uniswap V2 Liquidity Testing", () => {
         
         await expect(pool.connect(user).simpleSwap(await token1.getAddress(), amountIn)).to.be.revertedWith("ZERO_INPUT")
     })
+
+    it("test for invalid token", async () => {
+        const invalidToken = await ethers.deployContract('Token', ['InvalidToken','IVT']);
+        await invalidToken.waitForDeployment();
+
+        const amountIn = ethers.parseEther('1');
+
+        await invalidToken
+            .mint(user.address, amountIn);
+        
+        await invalidToken
+            .connect(user)
+            .approve(await pool.getAddress(),amountIn);
+        
+        await expect(pool.connect(user).simpleSwap(await invalidToken.getAddress(), amountIn)).to.be.revertedWith('INVALID_TOKEN');
+
+    })
+})
+
+describe("Uniwap v2 testing with small liquidity", () => {
+
+    let pool;
+    let token0;
+    let token1;
+
+    let owner;
+    let liquidityProvider
+
+    
+    beforeEach("contract deployment", async () => {
+
+        const Token = await ethers.getContractFactory('Token');
+
+        token0 = await Token.deploy("Token0","TK0");
+        await token0.waitForDeployment();
+    
+        token1 = await Token.deploy("Token1","TK1");
+        await token1.waitForDeployment();
+
+        pool = await ethers.deployContract('UniswapV2Liquidity',[
+            await token0.getAddress(),
+            await token1.getAddress()
+        ]);
+        await pool.waitForDeployment();
+    })
+
+    beforeEach('Minting tokens to signers', async () => {
+        [owner, liquidityProvider] = await ethers.getSigners();
+
+        await token0
+            .mint(liquidityProvider.address, ethers.parseEther('1'));
+        
+        await token1
+            .mint(liquidityProvider.address, ethers.parseEther('1000'));
+    })
+
+    it("adding small liquidity for first time", async () => {
+
+        const amount0 = 1n;
+        const amount1 = 1n;
+        const shareAmount = 1n;
+
+        await token0
+            .connect(liquidityProvider)
+            .approve(pool.getAddress(),amount0);
+        
+        await token1
+            .connect(liquidityProvider)
+            .approve(pool.getAddress(),amount1);
+        
+        await pool
+            .connect(liquidityProvider)
+            .addLiquidity(amount0, amount1);
+        
+        const share = await pool
+            .balanceOf(liquidityProvider.address);
+        
+        expect(share).to.be.equal(shareAmount);
+    })
+
 })
