@@ -4,23 +4,56 @@ pragma solidity 0.8.33;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
+/// @title Minimal Uniswap v2 Liquidity Pool
+/// @author Aayush Sinha
+/// @notice Simple constant product AMM (x*y = k)
+/// @dev
+/// Implements:
+/// - Liquidity addition (mint LP Tokens)
+/// - Liquidity removal  (burn LP Tokens)
+/// - Single hop swap with 0.3% of fee
+
+
 contract UniswapV2Liquidity is ERC20 {
 
+    /**
+     * @notice First token of the pair
+     */
     IERC20 public token0;
+
+    /**
+     * @notice Second token of the pair
+     */
     IERC20 public token1;
 
+    /**
+     * @notice Reserve of token 0
+     * @dev Updates after adding liquidity, removing liquidity and swap 
+     */
     uint256 public reserve0;
     uint256 public reserve1;
 
+    /**
+     * @dev Fee = 0.3% => 3/1000
+     */
     uint256 private constant FEE_NUMERATOR = 3;
     uint256 private constant FEE_DENOMINATOR = 1000;
 
-
+    /**
+     * 
+     * @param _token0 Address of token 0
+     * @param _token1 Address of token 1
+     */
     constructor(address _token0, address _token1) ERC20("LPTOKEN","LPT"){
         token0 = IERC20(_token0);
         token1 = IERC20(_token1);
     }
 
+    /**
+     * @notice Babylonian Square root
+     * @dev Used for initial LP share calculation
+     * @param y The amount of liquidity of which square root needs to be calculated
+     */
     function _sqrt(uint256 y) internal pure returns (uint256 z) {
         if (y > 3) {
             z = y;
@@ -34,15 +67,30 @@ contract UniswapV2Liquidity is ERC20 {
         }
     }
 
+    /**
+     * @notice Returns minimum of two values
+     * @dev Used for calculating amount for minting LP Tokens for LP provider
+     * @param x First number 
+     * @param y Second number
+     */
     function _min(uint x, uint y) private pure returns (uint) {
         return x < y ? x : y;
     }
 
+    /**
+     * @notice Syncs reserves with actual token balances
+     * @dev Must be called after every state change (adding liquidity, removing liquidity and swapping)
+     */
     function _updateReserves() private {
         reserve0 = token0.balanceOf(address(this));
         reserve1 = token1.balanceOf(address(this));
     }
 
+    /**
+     * @notice adds liquidity to the pool to mint LP Tokens
+     * @param amount0 Amount of token 0 to deposit
+     * @param amount1 Amount of token 1 to deposit
+     */
     function addLiquidity(uint256 amount0, uint256 amount1) external returns (uint256 shares){
         require(amount0 > 0 && amount1 > 0, "ZERO_AMOUNT");
 
@@ -63,6 +111,12 @@ contract UniswapV2Liquidity is ERC20 {
         _updateReserves();
     }
 
+    /**
+     * @notice Remove Liquidity from pool to burn LP tokens to return proportional reserves
+     * @param shares shares LP tokens to burn
+     * @return amount0 amount0 token0 returned
+     * @return amount1 amount1 token1 returned
+     */
     function removeLiquidity(uint256 shares) external returns(uint256 amount0, uint256 amount1){
         require(shares > 0, "ZERO SHARES");
 
@@ -76,7 +130,21 @@ contract UniswapV2Liquidity is ERC20 {
 
         _updateReserves();
     }
-
+    /**
+     * @notice Calculates output amount using constant product formula
+     * 
+     * @dev 
+     * Formula : 
+     * amountInWithFee = amountIn * 997
+     * numerator = amountInWithFee * reserveOut
+     * denominator = reserveIn * 1000 + amountInWithFee
+     * amountOut = numerator/denominator
+     * 
+     * @param amountIn Tokens being swapped In
+     * @param reserveIn Input token reserve
+     * @param reserveOut Output token reserve
+     * @return amountOut Output token amount
+     */
     function getAmountOut( uint256 amountIn, uint256 reserveIn, uint256 reserveOut) public pure returns(uint256){
         uint256 amountInWithFee = amountIn * (FEE_DENOMINATOR - FEE_NUMERATOR);
         uint256 numerator = amountInWithFee * reserveOut;
@@ -84,8 +152,14 @@ contract UniswapV2Liquidity is ERC20 {
         return numerator/denominator;
     }
 
-    /// @dev a simple single hop swap that takes exact input tokens for output tokens 
-    /// @dev mimimcs `swapExactTokenForTokens` in uniswap v2 Router02 contract
+
+    /**
+     * @notice Swaps Exact Input tokens for output tokens
+     * @notice  Mimics UniswapV2Router.swapExactTokensForTokens (single hop)
+     * @param tokenIn Address of input token
+     * @param amountIn Exact input amount
+     * @return amountOut Output tokens received
+     */
     function simpleSwap(address tokenIn, uint256 amountIn) external 
     returns
     (
