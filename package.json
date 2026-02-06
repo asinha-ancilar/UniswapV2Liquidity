@@ -8,6 +8,7 @@
   "main": "index.js",
   "scripts": {
     "test": "npx hardhat test",
+    "coverage": "npx hardhat coverage",
     "deploy-local": "rm -rf addresses-local.json && npx hardhat run scripts/deploy.js --network localhost"
   },
   "devDependencies": {

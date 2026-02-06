@@ -121,4 +121,38 @@ describe("Uniswap V2 Liquidity Testing", () => {
         
         expect(userBalanceOfToken0).to.equal(amountOut)
     })
+
+    it("removing liquidity", async () => {
+        const amountIn = ethers.parseEther('10');
+
+        await token1
+            .connect(user)
+            .approve(await pool.getAddress(), amountIn);
+        
+        await pool
+            .connect(user)
+            .simpleSwap(await token1.getAddress(), amountIn);
+
+        const balance0before = await token0
+            .balanceOf(liquidityProvider1.address);
+        
+        const balance1before = await token1
+            .balanceOf(liquidityProvider1.address)
+        
+        const shares = await pool
+            .balanceOf(liquidityProvider1.address);
+        
+        await pool
+            .connect(liquidityProvider1)
+            .removeLiquidity(shares);
+        
+        const balance0after = await token0
+            .balanceOf(liquidityProvider1.address)
+        
+        const balance1after = await token1
+            .balanceOf(liquidityProvider1.address);
+        
+        expect(balance0after).to.be.greaterThan(balance0before);
+        expect(balance1after).to.be.greaterThan(balance1before);
+    })
 })
